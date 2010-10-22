@@ -1,5 +1,5 @@
-#ifndef DB
-#define DB
+#ifndef DB_H
+#define DB_H
 
 #include <sqlite3.h>
 
@@ -25,7 +25,8 @@ public:
 	Db(void);
 	static const char *version(void);
 	int query(std::string _str);
-	int next(std::string *_author, std::string *_title);
+	int next(std::string *_author, std::string *_title,
+			 int *_rating, int *_copies);
 	~Db(void);
 };
 

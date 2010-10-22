@@ -26,6 +26,7 @@ MainWindow::MainWindow(void)
 	m_tree->setRootIsDecorated(false);
 	m_tree->setHeaderLabels(headers);
 	m_tree->setSortingEnabled(true);
+	m_tree->setAlternatingRowColors(true);
 	connect(m_tree, SIGNAL(doubleClicked(const QModelIndex)),
 			editdialog, SLOT(show()));
 	setCentralWidget(m_tree);
@@ -71,6 +72,7 @@ void MainWindow::filter(void)
 	QString str;
 	std::string author;
 	std::string title;
+	int rating, copies;
 	QStringList list;
 	QTreeWidgetItem *item;
 	QList<QTreeWidgetItem *> items;
@@ -78,13 +80,14 @@ void MainWindow::filter(void)
 	str = m_lineedit->text();
 	m_db->query(str.toStdString());
 
-	while (m_db->next(&author, &title) == 0) {
+	m_tree->clear();
+	while (m_db->next(&author, &title, &rating, &copies) == 0) {
 		list = QStringList();
 		list << QString::fromUtf8(author.c_str()) << 
-			QString::fromUtf8(title.c_str());
+			QString::fromUtf8(title.c_str()) << QString::number(rating) <<
+			QString::number(copies);
 		item = new QTreeWidgetItem((QTreeWidget *) 0, list);
 		items.append(item);
 	}
-	m_tree->clear();
 	m_tree->insertTopLevelItems(0, items);
 }

@@ -9,8 +9,8 @@ DEPENDPATH += .
 INCLUDEPATH += .
 
 # Input
-SOURCES += main.cpp mainwindow.cpp db.cpp editdialog.cpp
-HEADERS += mainwindow.h db.h editdialog.h
+SOURCES += main.cpp mainwindow.cpp db.cpp editdialog.cpp rating.cpp
+HEADERS += mainwindow.h db.h editdialog.h rating.h
 
 LIBS += -lsqlite3
 mac {

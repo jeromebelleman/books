@@ -2,7 +2,7 @@
 #include <string>
 #include "db.h"
 
-#define SELECT "SELECT author, title, rating FROM books \
+#define SELECT "SELECT author, title, rating, count FROM books \
 WHERE author like ? OR title like ?"
 
 Db::Db(void)
@@ -65,10 +65,12 @@ int Db::query(std::string _str)
 	return 0;
 }
 
-int Db::next(std::string *_author, std::string *_title)
+int Db::next(std::string *_author, std::string *_title,
+			 int *_rating, int *_copies)
 {
 	int rc;
 	const char *author, *title;
+	int rating, copies;
 
 	if (!m_db || !m_stmt) {
 		return 1;
@@ -91,9 +93,13 @@ int Db::next(std::string *_author, std::string *_title)
 
 	author = (const char *) sqlite3_column_text(m_stmt, 0);
 	title = (const char *) sqlite3_column_text(m_stmt, 1);
+	rating = sqlite3_column_int(m_stmt, 2);
+	copies = sqlite3_column_int(m_stmt, 3);
 	if (author && title) {
 		*_author = author;
 		*_title = title;
+		*_rating = rating;
+		*_copies = copies;
 /* 		strcpy(_author, (char *) author);
 		strcpy(_title, (char *) title); */
 		return 0;
