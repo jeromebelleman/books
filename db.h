@@ -22,7 +22,7 @@ private:
 	sqlite3_stmt *m_stmt;
 
 public:
-	Db(void);
+	Db(const std::string& _path);
 	static const char *version(void);
 	int query(std::string _str);
 	int next(std::string *_author, std::string *_title,

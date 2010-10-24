@@ -1,8 +1,8 @@
 #include "rating.h"
 
 Star::Star(int _i, bool _zero)
-	: m_i(_i), m_zero(_zero), m_ison(false), m_on("on.png"), m_off("off.png"), 
-	m_unrated("unrated.png")
+	: m_i(_i), m_zero(_zero), m_ison(false), m_on(":/on.png"), 
+	m_off(":/off.png"), m_unrated(":/unrated.png")
 {
 	setPixmap(m_unrated);
 }

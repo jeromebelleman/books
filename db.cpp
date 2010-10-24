@@ -5,13 +5,12 @@
 #define SELECT "SELECT author, title, rating, count FROM books \
 WHERE author like ? OR title like ?"
 
-Db::Db(void)
+Db::Db(const std::string& _path)
 {
 	int rc;
 
 	/* Open DB */
-	printf("Using SQLite %s\n", sqlite3_libversion());
-	rc = sqlite3_open_v2("books.db", &m_db, SQLITE_OPEN_READWRITE, NULL);
+	rc = sqlite3_open_v2(_path.c_str(), &m_db, SQLITE_OPEN_READWRITE, NULL);
 	if (rc) {
 		fprintf(stderr, "Couldn't open database: %s\n", sqlite3_errmsg(m_db));
 		sqlite3_close(m_db);
@@ -30,10 +29,6 @@ Db::Db(void)
 		m_stmt = NULL;
 		m_db = NULL;
 	}
-
-/* 	db = malloc(sizeof(db_t));
-	db->db = sqlitedb;
-	db->stmt = stmt; */
 }
 
 const char *Db::version(void)
@@ -114,14 +109,18 @@ Db::~Db(void)
 
 	if (m_stmt) {
 		rc = sqlite3_finalize(m_stmt);
-		if (rc) { /* FIXME Check against SQLITE_DONE? */
+		if (rc != SQLITE_OK) {
 			fprintf(stderr, "Couldn't delete statement: %s\n",
 					sqlite3_errmsg(m_db));
 		}
 	}
 
 	if (m_db) {
-		sqlite3_close(m_db);
+		rc = sqlite3_close(m_db);
+		/* XXX Whatever close returns is undocumented */
+		if (rc != SQLITE_OK) {
+			fprintf(stderr, "Couldn't close DB: %s\n",
+					sqlite3_errmsg(m_db));
+		}
 	}
-	printf("DB safely closed\n");
 }
