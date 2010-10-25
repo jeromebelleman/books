@@ -28,6 +28,7 @@ MainWindow::MainWindow(void)
 	m_headers << "Author" << "Title" << "Rating" << "Copies";
 
 	m_tree = new QTreeView();
+	m_model.setHorizontalHeaderLabels(m_headers);
 	m_tree->setModel(&m_model);
 	m_tree->setRootIsDecorated(false);
 	m_tree->setAlternatingRowColors(true);
@@ -136,15 +137,15 @@ int MainWindow::filter(void)
 		return 1;
 	}
 
-	m_model.clear();
+	while (m_model.removeRow(0));
 	while (m_db->next(&author, &title, &rating, &copies) == 0) {
 		items.clear();
 		authoritm = new QStandardItem(QString::fromUtf8(author.c_str()));
 		authoritm->setEditable(false);
-		titleitm = new QStandardItem(QString::fromUtf8(author.c_str()));
+		titleitm = new QStandardItem(QString::fromUtf8(title.c_str()));
 		titleitm->setEditable(false);
 		ratingitm = new QStandardItem();
-		ratingitm->setData(qVariantFromValue(NewRating(rating)), 0);
+		ratingitm->setData(qVariantFromValue(Rating(rating)), 0);
 		ratingitm->setEditable(false);
 		copiesitm = new QStandardItem(QString::number(copies));
 		copiesitm->setEditable(false);
@@ -165,8 +166,6 @@ int MainWindow::filter(void)
 /* 		printf("pop\n"); */
 /* 		m_tree->setItemWidget(item, 2, new QPushButton("voila")); */
 	}
-
-	m_model.setHorizontalHeaderLabels(m_headers);
 
 	return 0;
 }
@@ -221,8 +220,8 @@ void RatingDelegate::paint(QPainter *_painter,
 						   const QModelIndex& _index) const
 {
 
-	if (qVariantCanConvert<NewRating>(_index.data())) {
-		NewRating rating = qVariantValue<NewRating>(_index.data());
+	if (qVariantCanConvert<Rating>(_index.data())) {
+		Rating rating = qVariantValue<Rating>(_index.data());
 
 		if (_option.state & QStyle::State_Selected) {
 			_painter->fillRect(_option.rect, _option.palette.highlight());

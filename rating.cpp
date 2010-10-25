@@ -1,81 +1,103 @@
 #include "rating.h"
+#include <iostream>
+#include <QPointF>
+#include <QVector>
+#include <math.h>
 
-Star::Star(int _i, bool _zero)
-	: m_i(_i), m_zero(_zero), m_ison(false), m_on(":/on.png"), 
-	m_off(":/off.png"), m_unrated(":/unrated.png")
-{
-	setPixmap(m_unrated);
-}
+#define OFFSET 9
+#define MAX 5
+#define RADIUS1 8
+#define RADIUS2 3
 
-void Star::seton(bool _ison)
+Rating::Rating(int _rating)
+	: m_rating(_rating)
 {
-	if (_ison) {
-		if (m_zero) {
-			setPixmap(m_off);
+	for (int i = 0; i < 10; ++i) {
+		if (i % 2 == 0) {
+			m_star << QPointF(RADIUS1 * sin(i * .2 * 3.14) + OFFSET,
+							  RADIUS1 * -cos(i * .2 * 3.14) + OFFSET);
 		} else {
-			setPixmap(m_on);
+			m_star << QPointF(RADIUS2 * sin(i * .2 * 3.14) + OFFSET,
+							  RADIUS2 * -cos(i * .2 * 3.14) + OFFSET);
 		}
-		m_ison = true;
-	} else {
-		setPixmap(m_unrated);
-		m_ison = false;
 	}
 }
 
-void Star::toggle(void)
+QSize Rating::sizeHint(void) const
 {
-	if (m_ison) {
-		setPixmap(m_unrated);
-		m_ison = false;
+	return QSize(OFFSET + MAX * 3 * RADIUS1, 0);
+}
+
+void Rating::paint(QPainter *_painter, const QRect& _rect,
+					  const QPalette& _palette, bool _isHighlighted) const
+{
+	_painter->save();
+	_painter->setRenderHint(QPainter::Antialiasing, true);
+	_painter->setPen(Qt::NoPen); /* Seems slow with a pen! */
+	if (_isHighlighted) {
+		_painter->setBrush(_palette.background());
 	} else {
-		if (m_zero) {
-			setPixmap(m_off);
+		_painter->setBrush(_palette.foreground());
+	}
+
+	_painter->translate(_rect.x(), _rect.y());
+
+	if (m_rating != -1) {
+		for (int i = 0; i < MAX; ++i) {
+			if (i < m_rating) {
+				_painter->drawPolygon(m_star);
+			} else {
+				_painter->drawPie(8, 8, 3, 3, 0, 5760);
+			}
+			_painter->translate(2 * RADIUS1, 0.);
+		}
+	}
+
+	_painter->restore();
+}
+
+void Rating::set(int _rating)
+{
+	m_rating = _rating;
+}
+
+int Rating::get()
+{
+	return m_rating;
+}
+
+void RatingEditor::paintEvent(QPaintEvent *)
+{
+	QPainter painter(this);
+	painter.translate(0., OFFSET);
+	m_rating.paint(&painter, rect(), palette(), false);
+}
+
+QSize RatingEditor::sizeHint(void) const
+{
+	return m_rating.sizeHint();
+}
+
+void RatingEditor::mouseReleaseEvent(QMouseEvent *_evt)
+{
+	int x;
+	
+	x = _evt->x();
+
+	if (x < OFFSET + RADIUS1) {
+		if (m_rating.get() == 1) {
+			m_rating.set(0);
 		} else {
-			setPixmap(m_on);
+			m_rating.set(1);
 		}
-		m_ison = true;
+	} else if (x > OFFSET + RADIUS1 and x < OFFSET + 3 * RADIUS1) {
+		m_rating.set(2);
+	} else if (x > OFFSET + RADIUS1 and x < OFFSET + 5 * RADIUS1) {
+		m_rating.set(3);
+	} else if (x > OFFSET + RADIUS1 and x < OFFSET + 7 * RADIUS1) {
+		m_rating.set(4);
+	} else if (x > OFFSET + RADIUS1 and x < OFFSET + 9 * RADIUS1) {
+		m_rating.set(5);
 	}
-}
-
-void Star::mousePressEvent(QMouseEvent *)
-{
-	emit clicked(m_i);
-}
-
-Rating::Rating(int _n = 5)
-	: m_rating(-1)
-{
-	QHBoxLayout *layout;
-	Star *star;
-
-	layout = new QHBoxLayout();
-
-	star = new Star(0, true);
-	connect(star, SIGNAL(clicked(int)), this, SLOT(rate(int)));
-	m_stars << star;
-	layout->addWidget(star);
-
-	for (int i = 1; i < _n; ++i) {
-		star = new Star(i, false);
-		m_stars << star;
-		connect(star, SIGNAL(clicked(int)), this, SLOT(rate(int)));
-		layout->addWidget(star);
-	}
-
-	setLayout(layout);
-}
-
-void Rating::rate(int _i)
-{
-	if (_i == 0 && m_rating == 0) {
-		m_stars[0]->toggle();
-	} else {
-		for (int i = 0; i <= _i; ++i) {
-			m_stars[i]->seton(true);
-		}
-	}
-	for (int i = _i + 1; i < m_stars.size(); ++i) {
-		m_stars[i]->seton(false);
-	}
-	m_rating = _i;
+	update();
 }

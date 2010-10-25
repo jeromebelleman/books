@@ -3,7 +3,7 @@
 
 #include <QtGui>
 #include "cnf.h"
-#include "newrating.h"
+#include "rating.h"
 
 class Db;
 
