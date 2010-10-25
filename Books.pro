@@ -10,8 +10,8 @@ DEPENDPATH += .
 INCLUDEPATH += .
 
 # Input
-SOURCES += main.cpp mainwindow.cpp db.cpp editdialog.cpp rating.cpp cnf.cpp
-HEADERS += mainwindow.h db.h editdialog.h rating.h cnf.h
+SOURCES += main.cpp mainwindow.cpp db.cpp editdialog.cpp rating.cpp cnf.cpp newrating.cpp
+HEADERS += mainwindow.h db.h editdialog.h rating.h cnf.h newrating.h
 
 RESOURCES = Books.qrc
 

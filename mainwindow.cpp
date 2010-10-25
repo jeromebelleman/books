@@ -9,7 +9,6 @@ MainWindow::MainWindow(void)
 {
 	int rc;
 	std::string path;
-	QStringList headers;
 	EditDialog *editdialog;
 
 	connect(this, SIGNAL(closed(void)), this, SLOT(bye(void)));
@@ -26,16 +25,15 @@ MainWindow::MainWindow(void)
 
 	editdialog = new EditDialog();
 
-	headers << "Author" << "Title" << "Rating" << "Copies";
-	m_tree = new QTreeWidget();
-	m_tree->setColumnCount(4);
-	m_tree->setColumnWidth(0, 200);
-	m_tree->setColumnWidth(1, 200);
-	m_tree->setColumnWidth(2, 50);
+	m_headers << "Author" << "Title" << "Rating" << "Copies";
+
+	m_tree = new QTreeView();
+	m_tree->setModel(&m_model);
 	m_tree->setRootIsDecorated(false);
-	m_tree->setHeaderLabels(headers);
-	m_tree->setSortingEnabled(true);
 	m_tree->setAlternatingRowColors(true);
+	m_tree->setSortingEnabled(true);
+	m_delegate = new RatingDelegate();
+	m_tree->setItemDelegate(m_delegate);
 	connect(m_tree, SIGNAL(doubleClicked(const QModelIndex)),
 			editdialog, SLOT(show()));
 	setCentralWidget(m_tree);
@@ -45,6 +43,9 @@ MainWindow::MainWindow(void)
 	if (!rc) {
 		m_db = new Db(path);
 		rc = filter();
+		m_tree->setColumnWidth(0, 200);
+		m_tree->setColumnWidth(1, 200);
+		m_tree->setColumnWidth(2, 100);
 		if (rc) {
 			statusBar()->showMessage(tr("Invalid DB file"));
 		}
@@ -115,9 +116,10 @@ int MainWindow::filter(void)
 	std::string author;
 	std::string title;
 	int rating, copies;
-	QStringList list;
-	QTreeWidgetItem *item;
-	QList<QTreeWidgetItem *> items;
+/* 	QStringList list; */
+/* 	QTreeWidgetItem *item; */
+	QList<QStandardItem *> items;
+	QStandardItem *authoritm, *titleitm, *ratingitm, *copiesitm;
 
 	if (!m_tree) {
 		return 1;
@@ -130,20 +132,41 @@ int MainWindow::filter(void)
 	str = m_lineedit->text();
 	rc = m_db->query(str.toStdString());
 	if (rc) {
-		m_tree->clear();
+		m_model.clear();
 		return 1;
 	}
 
-	m_tree->clear();
+	m_model.clear();
 	while (m_db->next(&author, &title, &rating, &copies) == 0) {
-		list = QStringList();
+		items.clear();
+		authoritm = new QStandardItem(QString::fromUtf8(author.c_str()));
+		authoritm->setEditable(false);
+		titleitm = new QStandardItem(QString::fromUtf8(author.c_str()));
+		titleitm->setEditable(false);
+		ratingitm = new QStandardItem();
+		ratingitm->setData(qVariantFromValue(NewRating(rating)), 0);
+		ratingitm->setEditable(false);
+		copiesitm = new QStandardItem(QString::number(copies));
+		copiesitm->setEditable(false);
+		items << authoritm << titleitm << ratingitm << copiesitm;
+
+/* 		items << new QStandardItem(QString::fromUtf8(author.c_str())) <<
+		new QStandardItem(QString::fromUtf8(title.c_str())) <<
+		new QStandardItem(QString::number(rating)) <<
+		new QStandardItem(QString::number(copies)); */
+
+		m_model.appendRow(items);
+/* 		list = QStringList();
 		list << QString::fromUtf8(author.c_str()) << 
 			QString::fromUtf8(title.c_str()) << QString::number(rating) <<
 			QString::number(copies);
 		item = new QTreeWidgetItem((QTreeWidget *) 0, list);
-		items.append(item);
+		m_tree->addTopLevelItem(item); */
+/* 		printf("pop\n"); */
+/* 		m_tree->setItemWidget(item, 2, new QPushButton("voila")); */
 	}
-	m_tree->insertTopLevelItems(0, items);
+
+	m_model.setHorizontalHeaderLabels(m_headers);
 
 	return 0;
 }
@@ -181,4 +204,33 @@ void MainWindow::bye(void)
 void MainWindow::closeEvent(QCloseEvent *)
 {
 	emit closed();
+}
+
+/* QWidget *RatingDelegate::createEditor(QWidget *_parent,
+									  const QStyleOptionViewItem&,
+									  const QModelIndex&) const
+{
+	QPushButton *button;
+
+	button = new QPushButton("Voila", _parent);
+	return button;
+} */
+
+void RatingDelegate::paint(QPainter *_painter,
+						   const QStyleOptionViewItem& _option,
+						   const QModelIndex& _index) const
+{
+
+	if (qVariantCanConvert<NewRating>(_index.data())) {
+		NewRating rating = qVariantValue<NewRating>(_index.data());
+
+		if (_option.state & QStyle::State_Selected) {
+			_painter->fillRect(_option.rect, _option.palette.highlight());
+			rating.paint(_painter, _option.rect, _option.palette, true);
+		} else {
+			rating.paint(_painter, _option.rect, _option.palette, false);
+		}
+	} else {
+		QItemDelegate::paint(_painter, _option, _index);
+	}
 }
