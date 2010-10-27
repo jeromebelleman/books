@@ -1,7 +1,5 @@
 <!DOCTYPE RCC><RCC version="1.0">
 <qresource>
-	<file>on.png</file>
-	<file>off.png</file>
-	<file>unrated.png</file>
+	<file>book.png</file>
 </qresource>
 </RCC>

@@ -24,7 +24,10 @@ class RatingEditor : public QWidget {
 	Q_OBJECT
 
 public:
+	RatingEditor(int _rating);
 	QSize sizeHint(void) const;
+	void set(int _rating);
+	int get(void);
 
 protected:
 	void paintEvent(QPaintEvent *_evt);

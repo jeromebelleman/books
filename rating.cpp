@@ -66,6 +66,11 @@ int Rating::get()
 	return m_rating;
 }
 
+RatingEditor::RatingEditor(int _rating)
+	: m_rating(_rating)
+{
+}
+
 void RatingEditor::paintEvent(QPaintEvent *)
 {
 	QPainter painter(this);
@@ -100,4 +105,15 @@ void RatingEditor::mouseReleaseEvent(QMouseEvent *_evt)
 		m_rating.set(5);
 	}
 	update();
+}
+
+void RatingEditor::set(int _rating)
+{
+	m_rating.set(_rating);
+	update();
+}
+
+int RatingEditor::get(void)
+{
+	return m_rating.get();
 }

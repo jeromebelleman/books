@@ -26,11 +26,18 @@ public slots:
 	int filter(void);
 	void open(void);
 	void bye(void);
+	void editBook(const QModelIndex&);
+	void newBook(bool _checked);
+	void deleteBook(bool _checked);
+	int ls(void);
+	void finish(const QModelIndex&);
 
 signals:
 	void closed(void);
 
 private:
+	QAction *m_newbook;
+	QStandardItemModel m_authormodel, m_titlemodel;
 	QStandardItemModel m_model;
 	Cnf m_cnf;
 	Db *m_db;
@@ -39,6 +46,8 @@ private:
 	QLineEdit *m_lineedit;
 	QStringList m_headers;
 	RatingDelegate *m_delegate;
+	QList<QModelIndex> m_opened;
+
 	int menus(void);
 	int toolbar(void);
 	int filebrowser(void);
