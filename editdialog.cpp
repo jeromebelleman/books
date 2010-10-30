@@ -12,7 +12,6 @@ EditDialog::EditDialog(QWidget *_parent, const QModelIndex& _index, Db *_db,
 {
 	QGridLayout *grid;
 	QLabel *label;
-	QPushButton *pushbutton;
 	QCheckBox *checkbox;
 	QWidget *central;
 
@@ -66,6 +65,7 @@ EditDialog::EditDialog(QWidget *_parent, const QModelIndex& _index, Db *_db,
 
 	/* Copies */
 	m_spinbox = new QSpinBox();
+	m_spinbox->setMinimum(1);
 	m_copieslabel = new QLabel(tr("Copy"));
 	connect(m_spinbox, SIGNAL(valueChanged(int)), this, SLOT(setCopies(int)));
 	m_spinbox->setValue(_copies);
@@ -73,16 +73,20 @@ EditDialog::EditDialog(QWidget *_parent, const QModelIndex& _index, Db *_db,
 	grid->addWidget(m_copieslabel, 2, 4);
 
 	/* Buttons */
-	pushbutton = new QPushButton(tr("Save"));
-	connect(pushbutton, SIGNAL(clicked(bool)), this, SLOT(save(bool)));
-	pushbutton->setToolTip(tr("Save changes to database"));
-	grid->addWidget(pushbutton, 4, 3);
+	m_save = new QPushButton(tr("Save"));
+	m_save->setToolTip(tr("Save changes to database"));
+	m_save->setDefault(true);
+	connect(m_save, SIGNAL(clicked(bool)), this, SLOT(save(bool)));
+	grid->addWidget(m_save, 4, 3);
 
-	pushbutton = new QPushButton(tr("Cancel"));
-	pushbutton->setToolTip(tr("Cancel changes to database"));
-	grid->addWidget(pushbutton, 4, 4);
+	m_cancel = new QPushButton(tr("Cancel"));
+	m_cancel->setToolTip(tr("Cancel changes to database"));
+	connect(m_cancel, SIGNAL(clicked(bool)), this, SLOT(close(void)));
+	grid->addWidget(m_cancel, 4, 4);
 
 	setDialogTitle();
+
+	std::cout << isWindowModified() << "\n";
 }
 
 void EditDialog::setDialogTitle(void)
@@ -131,36 +135,62 @@ void EditDialog::setRatingEnabled(int _state)
 
 void EditDialog::save(bool)
 {
-	int rc;
+	int rc = 1;
 	QString author, title;
 	int rating, copies;
 	ConstraintDialog *dialog;
 
+	setWindowModified(true);
 
+	/* Pick up values from GUI */
 	author = m_authorlineedit->text();
 	title = m_titlelineedit->text();
 	rating = m_rating->get();
 	copies = m_spinbox->value();
 
-	dialog = new ConstraintDialog(this, author, title, copies);
-
-	rc = m_db->insert(author.toStdString(), title.toStdString(),
-					  rating, copies);
-	if (rc == Db::CONSTRAINT) {
+	/* Check any duplicate */
+	m_db->lookup(author.toStdString(), title.toStdString());
+	rc = m_db->lookupnext(NULL, NULL, &m_dbrating, &m_dbcopies);
+	if (rc) {
+		m_db->insertBook(author.toStdString(), title.toStdString(),
+					 rating, copies);
+		close();
+	} else {
+		dialog = new ConstraintDialog(this, author, title, m_dbcopies);
 		dialog->show();
 	}
 }
 
 void EditDialog::finish(int _result)
 {
+	QString author, title;
+
 	if (_result == QDialog::Accepted) {
-		std::cout << "accepted\n";
+		/* Pick up values from GUI */
+		author = m_authorlineedit->text();
+		title = m_titlelineedit->text();
+
+		m_db->updateBook(author.toStdString(), title.toStdString(),
+					 m_dbrating, m_dbcopies + 1);
+		close();
 	}
 }
 
 void EditDialog::closeEvent(QCloseEvent *)
 {
 	emit closed(m_index);
+}
+
+void EditDialog::keyReleaseEvent(QKeyEvent *_evt)
+{
+	switch (_evt->key()) {
+		case Qt::Key_Return:
+			m_save->animateClick();
+			break;
+		case Qt::Key_Escape:
+			m_cancel->animateClick();
+			break;
+	}
 }
 
 ConstraintDialog::ConstraintDialog(QWidget *_parent, const QString& _author,

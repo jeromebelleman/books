@@ -31,12 +31,15 @@ private:
 	QCompleter m_authorcompleter, m_titlecompleter;
 	QLineEdit *m_authorlineedit;
 	QLineEdit *m_titlelineedit;
+	QPushButton *m_save, *m_cancel;
 	QLabel *m_copieslabel;
 	RatingEditor *m_rating;
 	QSpinBox *m_spinbox;
 	int m_prvrating;
+	int m_dbrating, m_dbcopies;
 
 	void closeEvent(QCloseEvent *);
+	void keyReleaseEvent(QKeyEvent *_evt);
 };
 
 class ConstraintDialog : public QMessageBox {

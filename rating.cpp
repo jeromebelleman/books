@@ -69,6 +69,7 @@ int Rating::get()
 RatingEditor::RatingEditor(int _rating)
 	: m_rating(_rating)
 {
+	setFocusPolicy(Qt::StrongFocus);
 }
 
 void RatingEditor::paintEvent(QPaintEvent *)
@@ -103,6 +104,31 @@ void RatingEditor::mouseReleaseEvent(QMouseEvent *_evt)
 		m_rating.set(4);
 	} else if (x > OFFSET + RADIUS1 and x < OFFSET + 9 * RADIUS1) {
 		m_rating.set(5);
+	}
+	update();
+}
+
+void RatingEditor::keyReleaseEvent(QKeyEvent *_evt)
+{
+	switch (_evt->key()) {
+		case '0':
+			m_rating.set(0);
+			break;
+		case '1':
+			m_rating.set(1);
+			break;
+		case '2':
+			m_rating.set(2);
+			break;
+		case '3':
+			m_rating.set(3);
+			break;
+		case '4':
+			m_rating.set(4);
+			break;
+		case '5':
+			m_rating.set(5);
+			break;
 	}
 	update();
 }

@@ -32,6 +32,7 @@ public:
 protected:
 	void paintEvent(QPaintEvent *_evt);
 	void mouseReleaseEvent(QMouseEvent *_evt);
+	void keyReleaseEvent(QKeyEvent *_evt);
 
 private:
 	Rating m_rating;

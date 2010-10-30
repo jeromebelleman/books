@@ -17,7 +17,7 @@ RESOURCES = Books.qrc
 
 LIBS += -lsqlite3
 mac {
-	ICON = books.icns
+	ICON = stack.icns
 }
 linux-g++ {
 	QMAKE_LFLAGS += -L/home/local/sqlite/lib

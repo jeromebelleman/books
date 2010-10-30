@@ -32,7 +32,6 @@ private:
 	std::vector<prf_t> m_prfs;
 	std::vector<cmt_t> m_cmts;
 	int addcmt(const std::string& _cmt);
-	int getpath(std::string *_path);
 	int test(void);
 };
 

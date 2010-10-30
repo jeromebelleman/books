@@ -144,15 +144,15 @@ int MainWindow::filter(void)
 		return 1;
 	}
 
-	str = m_lineedit->text();
-	rc = m_db->filter(str.toStdString(), str.toStdString());
+	str = "%" + m_lineedit->text() + "%";
+	rc = m_db->lookup(str.toStdString(), str.toStdString());
 	if (rc) {
 		m_model.clear();
 		return 1;
 	}
 
 	while (m_model.removeRow(0));
-	while (m_db->filternext(&author, &title, &rating, &copies) == 0) {
+	while (m_db->lookupnext(&author, &title, &rating, &copies) == 0) {
 		items.clear();
 		authoritm = new QStandardItem(QString::fromUtf8(author.c_str()));
 		authoritm->setEditable(false);
@@ -267,7 +267,6 @@ int MainWindow::ls(void)
 	std::string val;
 	QStandardItem *item;
 
-
 	m_authormodel.clear();
 	while (m_db->lsnext(Db::AUTHOR, &val) == 0) {
 		item = new QStandardItem(QString::fromUtf8(val.c_str()));
@@ -285,7 +284,29 @@ int MainWindow::ls(void)
 
 void MainWindow::deleteBook(bool)
 {
-	std::cout << "Book to be deleted here\n";
+	QItemSelectionModel *model;
+	QModelIndexList selected;
+	QModelIndex index;
+	QStandardItem *item;
+	std::string author, title;
+
+	model = m_tree->selectionModel();
+	selected = model->selectedIndexes();
+
+	selected = model->selectedRows();
+	for (int i = 0; i < selected.size(); ++i) {
+		index = selected[i];
+		item = m_model.itemFromIndex(index);
+		author = item->text().toStdString();
+
+		index = index.sibling(index.row(), 1);
+		item = m_model.itemFromIndex(index);
+		title = item->text().toStdString();
+
+		m_db->deleteBook(author, title);
+	}
+	filter();
+	ls();
 }
 
 void MainWindow::finish(const QModelIndex& _index)
@@ -293,6 +314,7 @@ void MainWindow::finish(const QModelIndex& _index)
 	if (_index.isValid()) {
 		m_opened.removeAll(_index);
 	}
+	printf("update\n");
 }
 
 void RatingDelegate::paint(QPainter *_painter,

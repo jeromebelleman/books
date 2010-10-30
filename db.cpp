@@ -1,14 +1,23 @@
 #include <stdio.h>
+#include <iostream>
 #include <string>
+#include <vector>
 #include "db.h"
 
-#define FILTER "SELECT author, title, rating, count FROM books \
-WHERE author like ? OR title like ?"
+#define LOOKUP "SELECT author, title, rating, count FROM books \
+WHERE author LIKE ? OR title LIKE ?"
+#define LOOKUPSTRICT "SELECT author, title, rating, count FROM books \
+WHERE author = ? AND title = ?"
 #define AUTHORS "SELECT DISTINCT author FROM books"
 #define TITLES "SELECT DISTINCT title FROM books"
-#define INSERT "INSERT INTO books VALUES (?, ?, ?, ?)"
+#define INSERT "INSERT INTO books (author, title, rating, count) \
+VALUES (?, ?, ?, ?)"
+#define UPDATE "UPDATE books SET rating = ?, count = ? \
+WHERE author = ? AND title = ?"
+#define DELETE "DELETE FROM books WHERE author = ? AND title = ?"
 
 Db::Db(const std::string& _path)
+	: m_stmts(STMTC)
 {
 	int rc;
 
@@ -18,49 +27,29 @@ Db::Db(const std::string& _path)
 		fprintf(stderr, "Couldn't open database: %s\n", sqlite3_errmsg(m_db));
 		sqlite3_close(m_db);
 		m_db = NULL;
-		m_filterstmt = NULL;
 		return;
 	}
 
+	m_queries.push_back(LOOKUP);
+	m_queries.push_back(LOOKUPSTRICT);
+	m_queries.push_back(AUTHORS);
+	m_queries.push_back(TITLES);
+	m_queries.push_back(INSERT);
+	m_queries.push_back(UPDATE);
+	m_queries.push_back(DELETE);
+
 	/* Prepare statements */
-	rc = sqlite3_prepare_v2(m_db, FILTER, -1, &m_filterstmt, NULL);
-	if (rc) {
-		fprintf(stderr, "Couldn't prepare statement: %s\n",
-				sqlite3_errmsg(m_db));
-		sqlite3_finalize(m_filterstmt); /* FIXME Does that make sense? */
-		sqlite3_close(m_db);
-		m_filterstmt = NULL;
-		m_db = NULL;
-	}
-
-	rc = sqlite3_prepare_v2(m_db, AUTHORS, -1, &m_authorstmt, NULL);
-	if (rc) {
-		fprintf(stderr, "Couldn't prepare statement: %s\n",
-				sqlite3_errmsg(m_db));
-		sqlite3_finalize(m_authorstmt); /* FIXME Does that make sense? */
-		sqlite3_close(m_db);
-		m_authorstmt = NULL;
-		m_db = NULL;
-	}
-
-	rc = sqlite3_prepare_v2(m_db, TITLES, -1, &m_titlestmt, NULL);
-	if (rc) {
-		fprintf(stderr, "Couldn't prepare statement: %s\n",
-				sqlite3_errmsg(m_db));
-		sqlite3_finalize(m_titlestmt); /* FIXME Does that make sense? */
-		sqlite3_close(m_db);
-		m_titlestmt = NULL;
-		m_db = NULL;
-	}
-
-	rc = sqlite3_prepare_v2(m_db, INSERT, -1, &m_insertstmt, NULL);
-	if (rc) {
-		fprintf(stderr, "Couldn't prepare statement: %s\n",
-				sqlite3_errmsg(m_db));
-		sqlite3_finalize(m_insertstmt); /* FIXME Does that make sense? */
-		sqlite3_close(m_db);
-		m_insertstmt = NULL;
-		m_db = NULL;
+	for (unsigned i = 0; i < STMTC; ++i) {
+		rc = sqlite3_prepare_v2(m_db, m_queries[i].c_str(), -1,
+								&m_stmts[i], NULL);
+		if (rc) {
+			fprintf(stderr, "Couldn't prepare statement: %s\n",
+					sqlite3_errmsg(m_db));
+			sqlite3_finalize(m_stmts[i]); /* FIXME Does that make sense? */
+			sqlite3_close(m_db);
+			m_stmts[i] = NULL;
+			m_db = NULL;
+		}
 	}
 }
 
@@ -69,25 +58,36 @@ const char *Db::version(void)
 	return sqlite3_libversion();
 }
 
-int Db::filter(const std::string& _author, const std::string& _title)
+int Db::lookup(const std::string& _author,
+			   const std::string& _title, bool _isStrict)
 {
 	int rc;
-	std::string author, title;
+	sqlite3_stmt *stmt;
 
-	if (!m_db || !m_filterstmt) {
+	if (_isStrict) {
+		stmt = m_stmts[LOOKUPSTRICTSTMT];
+	} else {
+		stmt = m_stmts[LOOKUPSTMT];
+	}
+
+	if (!m_db || !stmt) {
 		return 1;
 	}
 
-	author = "%" + _author + "%";
-	rc = sqlite3_bind_text(m_filterstmt, 1, author.c_str(),
+	rc = sqlite3_reset(stmt);
+	if (rc != SQLITE_OK) {
+		fprintf(stderr, "Couldn't reset statement: %s\n", sqlite3_errmsg(m_db));
+		return 1;
+	}
+
+	rc = sqlite3_bind_text(stmt, 1, _author.c_str(),
 						   -1, SQLITE_TRANSIENT);
 	if (rc) {
 		fprintf(stderr, "Couldn't bind values: %s\n", sqlite3_errmsg(m_db));
 		return 1;
 	}
 
-	title = "%" + _title + "%";
-	rc = sqlite3_bind_text(m_filterstmt, 2, title.c_str(),
+	rc = sqlite3_bind_text(stmt, 2, _title.c_str(),
 						   -1, SQLITE_TRANSIENT);
 	if (rc) {
 		fprintf(stderr, "Couldn't bind values: %s\n", sqlite3_errmsg(m_db));
@@ -97,25 +97,19 @@ int Db::filter(const std::string& _author, const std::string& _title)
 	return 0;
 }
 
-int Db::filternext(std::string *_author, std::string *_title,
+int Db::lookupnext(std::string *_author, std::string *_title,
 				   int *_rating, int *_copies)
 {
 	int rc;
 	const char *author, *title;
 	int rating, copies;
 
-	if (!m_db || !m_filterstmt) {
+	if (!m_db || !m_stmts[LOOKUPSTMT]) {
 		return 1;
 	}
 
-	rc = sqlite3_step(m_filterstmt);
+	rc = sqlite3_step(m_stmts[LOOKUPSTMT]);
 	if (rc == SQLITE_DONE) {
-		rc = sqlite3_reset(m_filterstmt);
-		if (rc) { /* FIXME Check against SQLITE_DONE? */
-			fprintf(stderr, "Couldn't reset statement: %s\n",
-					sqlite3_errmsg(m_db));
-			return 1;
-		}
 		return 1;
 	} else if (rc != SQLITE_ROW) {
 		fprintf(stderr, "Couldn't read next result (%d): %s\n", rc,
@@ -123,15 +117,23 @@ int Db::filternext(std::string *_author, std::string *_title,
 		return 1;
 	}
 
-	author = (const char *) sqlite3_column_text(m_filterstmt, 0);
-	title = (const char *) sqlite3_column_text(m_filterstmt, 1);
-	rating = sqlite3_column_int(m_filterstmt, 2);
-	copies = sqlite3_column_int(m_filterstmt, 3);
+	author = (const char *) sqlite3_column_text(m_stmts[LOOKUPSTMT], 0);
+	title = (const char *) sqlite3_column_text(m_stmts[LOOKUPSTMT], 1);
+	rating = sqlite3_column_int(m_stmts[LOOKUPSTMT], 2);
+	copies = sqlite3_column_int(m_stmts[LOOKUPSTMT], 3);
 	if (author && title) {
-		*_author = author;
-		*_title = title;
-		*_rating = rating;
-		*_copies = copies;
+		if (_author) {
+			*_author = author;
+		}
+		if (_title) {
+			*_title = title;
+		}
+		if (_rating) {
+			*_rating = rating;
+		}
+		if (_copies) {
+			*_copies = copies;
+		}
 		return 0;
 	}
 
@@ -144,14 +146,14 @@ int Db::lsnext(int _what, std::string *_val)
 	sqlite3_stmt *stmt;
 	const char *val;
 
-	if (!m_db || !m_authorstmt || !m_titlestmt) {
+	if (!m_db || !m_stmts[AUTHORSTMT] || !m_stmts[TITLESTMT]) {
 		return 1;
 	}
 
 	if (_what == Db::AUTHOR) {
-		stmt = m_authorstmt;
+		stmt = m_stmts[AUTHORSTMT];
 	} else if (_what == Db::TITLE) {
-		stmt = m_titlestmt;
+		stmt = m_stmts[TITLESTMT];
 	} else {
 		return 1;
 	}
@@ -180,46 +182,140 @@ int Db::lsnext(int _what, std::string *_val)
 	return 1;
 }
 
-int Db::insert(const std::string& _author, const std::string& _title,
-			   int _rating, int _copies)
+int Db::insertBook(const std::string& _author, const std::string& _title,
+				   int _rating, int _copies)
 {
 	int rc;
 
-	if (!m_db || !m_filterstmt) {
+	if (!m_db || !m_stmts[INSERTSTMT]) {
 		return 1;
 	}
 
-	rc = sqlite3_bind_text(m_insertstmt, 1, _author.c_str(),
+	rc = sqlite3_bind_text(m_stmts[INSERTSTMT], 1, _author.c_str(),
 						   -1, SQLITE_TRANSIENT);
 	if (rc) {
 		fprintf(stderr, "Couldn't bind values: %s\n", sqlite3_errmsg(m_db));
 		return 1;
 	}
 
-	rc = sqlite3_bind_text(m_insertstmt, 2, _title.c_str(),
+	rc = sqlite3_bind_text(m_stmts[INSERTSTMT], 2, _title.c_str(),
 						   -1, SQLITE_TRANSIENT);
 	if (rc) {
 		fprintf(stderr, "Couldn't bind values: %s\n", sqlite3_errmsg(m_db));
 		return 1;
 	}
 
-	rc = sqlite3_bind_int(m_insertstmt, 4, _rating);
+	rc = sqlite3_bind_int(m_stmts[INSERTSTMT], 3, _rating);
 	if (rc) {
 		fprintf(stderr, "Couldn't bind values: %s\n", sqlite3_errmsg(m_db));
 		return 1;
 	}
 
-	rc = sqlite3_bind_int(m_insertstmt, 3, _copies);
+	rc = sqlite3_bind_int(m_stmts[INSERTSTMT], 4, _copies);
 	if (rc) {
 		fprintf(stderr, "Couldn't bind values: %s\n", sqlite3_errmsg(m_db));
 		return 1;
 	}
 
-	rc = sqlite3_step(m_insertstmt);
-	if (rc == SQLITE_CONSTRAINT) {
-		return CONSTRAINT;
-	} else if (rc != SQLITE_DONE) {
+	rc = sqlite3_step(m_stmts[INSERTSTMT]);
+	if (rc != SQLITE_DONE) {
 		fprintf(stderr, "Couldn't insert row: %s\n", sqlite3_errmsg(m_db));
+		return 1;
+	}
+
+	rc = sqlite3_reset(m_stmts[INSERTSTMT]);
+	if (rc != SQLITE_OK) {
+		fprintf(stderr, "Couldn't reset statement: %s\n",
+				sqlite3_errmsg(m_db));
+		return 1;
+	}
+
+	return 0;
+}
+
+int Db::updateBook(const std::string& _author, const std::string& _title,
+				   int _rating, int _copies)
+{
+	int rc;
+
+	if (!m_db || !m_stmts[UPDATESTMT]) {
+		return 1;
+	}
+
+	rc = sqlite3_bind_int(m_stmts[UPDATESTMT], 1, _rating);
+	if (rc) {
+		fprintf(stderr, "Couldn't bind values: %s\n", sqlite3_errmsg(m_db));
+		return 1;
+	}
+
+	rc = sqlite3_bind_int(m_stmts[UPDATESTMT], 2, _copies);
+	if (rc) {
+		fprintf(stderr, "Couldn't bind values: %s\n", sqlite3_errmsg(m_db));
+		return 1;
+	}
+
+	rc = sqlite3_bind_text(m_stmts[UPDATESTMT], 3, _author.c_str(),
+						   -1, SQLITE_TRANSIENT);
+	if (rc) {
+		fprintf(stderr, "Couldn't bind values: %s\n", sqlite3_errmsg(m_db));
+		return 1;
+	}
+
+	rc = sqlite3_bind_text(m_stmts[UPDATESTMT], 4, _title.c_str(),
+						   -1, SQLITE_TRANSIENT);
+	if (rc) {
+		fprintf(stderr, "Couldn't bind values: %s\n", sqlite3_errmsg(m_db));
+		return 1;
+	}
+
+	rc = sqlite3_step(m_stmts[UPDATESTMT]);
+	if (rc != SQLITE_DONE) {
+		fprintf(stderr, "Couldn't update row: %s\n", sqlite3_errmsg(m_db));
+		return 1;
+	}
+
+	rc = sqlite3_reset(m_stmts[UPDATESTMT]);
+	if (rc != SQLITE_OK) {
+		fprintf(stderr, "Couldn't reset statement: %s\n",
+				sqlite3_errmsg(m_db));
+		return 1;
+	}
+
+	return 0;
+}
+
+int Db::deleteBook(const std::string& _author, const std::string& _title)
+{
+	int rc;
+
+	if (!m_db || !m_stmts[DELETESTMT]) {
+		return 1;
+	}
+
+	rc = sqlite3_bind_text(m_stmts[DELETESTMT], 1, _author.c_str(),
+						   -1, SQLITE_TRANSIENT);
+	if (rc) {
+		fprintf(stderr, "Couldn't bind values: %s\n", sqlite3_errmsg(m_db));
+		return 1;
+	}
+
+	rc = sqlite3_bind_text(m_stmts[DELETESTMT], 2, _title.c_str(),
+						   -1, SQLITE_TRANSIENT);
+	if (rc) {
+		fprintf(stderr, "Couldn't bind values: %s\n", sqlite3_errmsg(m_db));
+		return 1;
+	}
+
+	rc = sqlite3_step(m_stmts[DELETESTMT]);
+	if (rc != SQLITE_DONE) {
+		fprintf(stderr, "Couldn't update row: %s\n", sqlite3_errmsg(m_db));
+		return 1;
+	}
+
+	rc = sqlite3_reset(m_stmts[DELETESTMT]);
+	if (rc != SQLITE_OK) {
+		fprintf(stderr, "Couldn't reset statement: %s\n",
+				sqlite3_errmsg(m_db));
 		return 1;
 	}
 
@@ -230,34 +326,10 @@ Db::~Db(void)
 {
 	int rc;
 
-	if (m_filterstmt) {
-		rc = sqlite3_finalize(m_filterstmt);
+	for (unsigned i = 0; i < m_stmts.size(); ++i) {
+		rc = sqlite3_finalize(m_stmts[i]);
 		if (rc != SQLITE_OK) {
-			fprintf(stderr, "Couldn't delete statement: %s\n",
-					sqlite3_errmsg(m_db));
-		}
-	}
-
-	if (m_authorstmt) {
-		rc = sqlite3_finalize(m_authorstmt);
-		if (rc != SQLITE_OK) {
-			fprintf(stderr, "Couldn't delete statement: %s\n",
-					sqlite3_errmsg(m_db));
-		}
-	}
-
-	if (m_titlestmt) {
-		rc = sqlite3_finalize(m_titlestmt);
-		if (rc != SQLITE_OK) {
-			fprintf(stderr, "Couldn't delete statement: %s\n",
-					sqlite3_errmsg(m_db));
-		}
-	}
-
-	if (m_insertstmt) {
-		rc = sqlite3_finalize(m_insertstmt);
-		if (rc != SQLITE_OK) {
-			fprintf(stderr, "Couldn't delete statement: %s\n",
+			fprintf(stderr, "Couldn't finalize statement: %s\n",
 					sqlite3_errmsg(m_db));
 		}
 	}

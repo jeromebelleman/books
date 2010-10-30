@@ -2,6 +2,8 @@
 #include <iostream>
 #include <fstream>
 #include <QtCore>
+#include <sys/stat.h>
+#include <errno.h>
 
 Cnf::Cnf(void)
 	: m_linec(0)
@@ -57,6 +59,7 @@ int Cnf::read(void)
 	int rc;
 
 	/* File Variables */
+	char *home;
 	std::string path;
 	std::ifstream file;
 
@@ -66,7 +69,19 @@ int Cnf::read(void)
 	int state = NEWLINE;
 	std::string key, val, cmt; /* Working variables */
 
-	getpath(&path);
+	home = getenv("HOME");
+	if (!home) {
+		return 1;
+	}
+
+	#if defined(Q_WS_MAC)
+	path = std::string(home) + "/Library/Books/.booksrc";
+	#elif defined(Q_WS_X11)
+	path = std::string(home) + "/.booksrc";
+	#else
+	#error "Module cnf not implemented for this platform"
+	#endif
+
 	file.open(path.c_str());
 	if (!file.is_open()) {
 		return 1;
@@ -142,9 +157,16 @@ int Cnf::read(void)
 	return 0;
 }
 
-int Cnf::getpath(std::string *_path)
+int Cnf::write(void)
 {
 	char *home;
+	std::string path;
+	std::ofstream file;
+	unsigned lineno = 0, prf_i = 0, cmt_i = 0;
+	#if defined(Q_WS_MAC)
+	int rc;
+	std::string libpath;
+	#endif
 
 	home = getenv("HOME");
 	if (!home) {
@@ -152,23 +174,18 @@ int Cnf::getpath(std::string *_path)
 	}
 
 	#if defined(Q_WS_MAC)
-	*_path = std::string(home) + "/Library/Books/" + ".booksrc";
+	libpath = std::string(home) + "/Library/Books";
+	rc = mkdir(libpath.c_str(), S_IRWXU);
+	if (rc != 0 and rc != EEXIST) {
+		return 1;
+	}
+	path = std::string(home) + "/Library/Books/.booksrc";
 	#elif defined(Q_WS_X11)
-	*_path = std::string(home) + "/" + ".booksrc";
+	path = std::string(home) + "/.booksrc";
 	#else
 	#error "Module cnf not implemented for this platform"
 	#endif
 
-	return 0;
-}
-
-int Cnf::write(void)
-{
-	std::string path;
-	std::ofstream file;
-	unsigned lineno = 0, prf_i = 0, cmt_i = 0;
-
-	getpath(&path);
 	file.open(path.c_str());
 	if (!file.is_open()) {
 		return 1;
