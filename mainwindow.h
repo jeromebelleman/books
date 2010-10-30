@@ -47,6 +47,7 @@ private:
 	QStringList m_headers;
 	RatingDelegate *m_delegate;
 	QList<QModelIndex> m_opened;
+	QMenu *m_deletemenu;
 
 	int menus(void);
 	int toolbar(void);

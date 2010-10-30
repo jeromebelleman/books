@@ -38,8 +38,10 @@ MainWindow::MainWindow(void)
 
 	m_cnf.read();
 	rc = m_cnf.get("dbpath", &path);
-	if (!rc) {
+	if (rc == 0) {
 		m_db = new Db(path);
+		m_newbook->setEnabled(true);
+		m_deletemenu->setEnabled(true);
 		rc = filter(); /* FIXME Shadowed RC here */
 		rc = ls();
 		m_tree->setColumnWidth(0, 200);
@@ -53,7 +55,7 @@ MainWindow::MainWindow(void)
 
 int MainWindow::menus(void)
 {
-	QMenu *file, *book, *deletemenu;
+	QMenu *file, *book;
 	QAction *open, *quit, *deletebook;
 
 	file = menuBar()->addMenu(tr("&File"));
@@ -71,15 +73,17 @@ int MainWindow::menus(void)
 	book = menuBar()->addMenu(tr("&Book"));
 
 	m_newbook = new QAction(QIcon(":/book.png"), tr("&New Book"), this);
+	m_newbook->setEnabled(false);
 	m_newbook->setShortcut(tr("Ctrl+N"));
 	connect(m_newbook, SIGNAL(triggered(bool)), this, SLOT(newBook(bool)));
 	book->addAction(m_newbook);
 
-	deletemenu = book->addMenu(tr("Delete Book?"));
+	m_deletemenu = book->addMenu(tr("Delete Book?"));
+	m_deletemenu->setEnabled(false);
 
 	deletebook = new QAction(tr("Yes, &Delete Book"), this);
 	connect(deletebook, SIGNAL(triggered(bool)), this, SLOT(deleteBook(bool)));
-	deletemenu->addAction(deletebook);
+	m_deletemenu->addAction(deletebook);
 
 	return 0;
 }
@@ -100,7 +104,6 @@ int MainWindow::toolbar(void)
 	toolbar->addAction(m_newbook);
 	toolbar->addWidget(lbl);
 	toolbar->addWidget(m_lineedit);
-
 
 	return 0;
 }
@@ -197,10 +200,14 @@ void MainWindow::open(void)
 		m_cnf.write();
 
 		/* Close currently opened DB */
-		delete m_db;
+		if (m_db) {
+			delete m_db;
+		}
 
 		/* Open and read DB */
 		m_db = new Db(files[0].toStdString());
+		m_newbook->setEnabled(true);
+		m_deletemenu->setEnabled(true);
 		rc = filter();
 		if (rc) {
 			statusBar()->showMessage(tr("Invalid DB file"));
@@ -210,7 +217,9 @@ void MainWindow::open(void)
 
 void MainWindow::bye(void)
 {
-	delete m_db;
+	if (m_db) {
+		delete m_db;
+	}
 	QCoreApplication::quit();
 }
 
@@ -226,6 +235,10 @@ void MainWindow::editBook(const QModelIndex& _index)
 	QString author, title;
 	Rating rating;
 	int copies;
+
+	if (!m_db) {
+		return;
+	}
 
 	mainindex = _index.sibling(_index.row(), 0);
 	if (m_opened.contains(mainindex)) {
@@ -248,7 +261,7 @@ void MainWindow::editBook(const QModelIndex& _index)
 	copies = item->text().toInt();
 
 	EditDialog *edit = new EditDialog(this, mainindex, m_db, &m_authormodel,
-									  &m_titlemodel, author, title,
+									  &m_titlemodel, false, author, title,
 									  rating.get(), copies);
 	edit->show();
 }
@@ -257,8 +270,12 @@ void MainWindow::newBook(bool)
 {
 	EditDialog *edit;
 
+	if (!m_db) {
+		return;
+	}
+
 	edit = new EditDialog(this, QModelIndex(), m_db,
-						  &m_authormodel, &m_titlemodel);
+						  &m_authormodel, &m_titlemodel, true);
 	edit->show();
 }
 
@@ -266,6 +283,10 @@ int MainWindow::ls(void)
 {
 	std::string val;
 	QStandardItem *item;
+
+	if (!m_db) {
+		return 1;
+	}
 
 	m_authormodel.clear();
 	while (m_db->lsnext(Db::AUTHOR, &val) == 0) {
@@ -289,6 +310,10 @@ void MainWindow::deleteBook(bool)
 	QModelIndex index;
 	QStandardItem *item;
 	std::string author, title;
+
+	if (!m_db) {
+		return;
+	}
 
 	model = m_tree->selectionModel();
 	selected = model->selectedIndexes();
@@ -314,7 +339,10 @@ void MainWindow::finish(const QModelIndex& _index)
 	if (_index.isValid()) {
 		m_opened.removeAll(_index);
 	}
-	printf("update\n");
+
+	/* FIXME Blunt, because everything is updated even without a change */
+	filter();
+	ls();
 }
 
 void RatingDelegate::paint(QPainter *_painter,

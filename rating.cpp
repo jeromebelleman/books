@@ -110,6 +110,9 @@ void RatingEditor::mouseReleaseEvent(QMouseEvent *_evt)
 
 void RatingEditor::keyReleaseEvent(QKeyEvent *_evt)
 {
+	/* Propagate event */
+	_evt->ignore();
+
 	switch (_evt->key()) {
 		case '0':
 			m_rating.set(0);

@@ -11,7 +11,7 @@ class EditDialog : public QMainWindow {
 public:
 	EditDialog(QWidget *_parent, const QModelIndex& _index, Db *_db, 
 			   QAbstractItemModel *_authormodel,
-			   QAbstractItemModel *_titlemodel,
+			   QAbstractItemModel *_titlemodel, bool _isNew = true,
 			   const QString& _author = "", const QString& _title = "",
 			   int _rating = -1, int _copies = 0);
 
@@ -37,6 +37,11 @@ private:
 	QSpinBox *m_spinbox;
 	int m_prvrating;
 	int m_dbrating, m_dbcopies;
+	const bool m_isNew;
+
+	/* Old values */
+	const QString m_author;
+	const QString m_title;
 
 	void closeEvent(QCloseEvent *);
 	void keyReleaseEvent(QKeyEvent *_evt);

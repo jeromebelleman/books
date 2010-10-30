@@ -3,12 +3,12 @@
 
 EditDialog::EditDialog(QWidget *_parent, const QModelIndex& _index, Db *_db,
 					   QAbstractItemModel *_authormodel,
-					   QAbstractItemModel *_titlemodel,
+					   QAbstractItemModel *_titlemodel, bool _isNew,
 					   const QString& _author, const QString& _title,
 					   int _rating, int _copies)
 	: QMainWindow(_parent), m_index(_index), m_db(_db), 
 	m_authorcompleter(_authormodel), m_titlecompleter(_titlemodel), 
-	m_prvrating(_rating)
+	m_prvrating(_rating), m_isNew(_isNew), m_author(_author), m_title(_title)
 {
 	QGridLayout *grid;
 	QLabel *label;
@@ -85,8 +85,6 @@ EditDialog::EditDialog(QWidget *_parent, const QModelIndex& _index, Db *_db,
 	grid->addWidget(m_cancel, 4, 4);
 
 	setDialogTitle();
-
-	std::cout << isWindowModified() << "\n";
 }
 
 void EditDialog::setDialogTitle(void)
@@ -140,25 +138,32 @@ void EditDialog::save(bool)
 	int rating, copies;
 	ConstraintDialog *dialog;
 
-	setWindowModified(true);
-
 	/* Pick up values from GUI */
 	author = m_authorlineedit->text();
 	title = m_titlelineedit->text();
 	rating = m_rating->get();
 	copies = m_spinbox->value();
 
-	/* Check any duplicate */
-	m_db->lookup(author.toStdString(), title.toStdString());
-	rc = m_db->lookupnext(NULL, NULL, &m_dbrating, &m_dbcopies);
-	if (rc) {
-		m_db->insertBook(author.toStdString(), title.toStdString(),
-					 rating, copies);
-		close();
+	/* Is it about insert or updating? */
+	if (m_isNew) {
+		/* Check any duplicate */
+		m_db->lookup(author.toStdString(), title.toStdString());
+		rc = m_db->lookupnext(NULL, NULL, &m_dbrating, &m_dbcopies);
+		if (rc) {
+			m_db->insertBook(author.toStdString(), title.toStdString(),
+							 rating, copies);
+			close();
+		} else {
+			dialog = new ConstraintDialog(this, author, title, m_dbcopies);
+			dialog->show();
+		}
 	} else {
-		dialog = new ConstraintDialog(this, author, title, m_dbcopies);
-		dialog->show();
+		m_db->updateBook(m_author.toStdString(), m_title.toStdString(),
+						 author.toStdString(), title.toStdString(),
+						 rating, copies);
+		close();
 	}
+
 }
 
 void EditDialog::finish(int _result)
@@ -170,8 +175,9 @@ void EditDialog::finish(int _result)
 		author = m_authorlineedit->text();
 		title = m_titlelineedit->text();
 
-		m_db->updateBook(author.toStdString(), title.toStdString(),
-					 m_dbrating, m_dbcopies + 1);
+		m_db->updateBook(m_author.toStdString(), m_title.toStdString(),
+						 author.toStdString(), title.toStdString(),
+						 m_dbrating, m_dbcopies + 1);
 		close();
 	}
 }
@@ -187,9 +193,9 @@ void EditDialog::keyReleaseEvent(QKeyEvent *_evt)
 		case Qt::Key_Return:
 			m_save->animateClick();
 			break;
-		case Qt::Key_Escape:
+/* 		case Qt::Key_Escape:
 			m_cancel->animateClick();
-			break;
+			break; */
 	}
 }
 

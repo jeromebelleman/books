@@ -12,7 +12,7 @@ WHERE author = ? AND title = ?"
 #define TITLES "SELECT DISTINCT title FROM books"
 #define INSERT "INSERT INTO books (author, title, rating, count) \
 VALUES (?, ?, ?, ?)"
-#define UPDATE "UPDATE books SET rating = ?, count = ? \
+#define UPDATE "UPDATE books SET author = ?, title = ?, rating = ?, count = ? \
 WHERE author = ? AND title = ?"
 #define DELETE "DELETE FROM books WHERE author = ? AND title = ?"
 
@@ -146,10 +146,6 @@ int Db::lsnext(int _what, std::string *_val)
 	sqlite3_stmt *stmt;
 	const char *val;
 
-	if (!m_db || !m_stmts[AUTHORSTMT] || !m_stmts[TITLESTMT]) {
-		return 1;
-	}
-
 	if (_what == Db::AUTHOR) {
 		stmt = m_stmts[AUTHORSTMT];
 	} else if (_what == Db::TITLE) {
@@ -157,6 +153,11 @@ int Db::lsnext(int _what, std::string *_val)
 	} else {
 		return 1;
 	}
+
+	if (!m_db || !stmt) {
+		return 1;
+	}
+
 
 	rc = sqlite3_step(stmt);
 	if (rc == SQLITE_DONE) {
@@ -233,7 +234,8 @@ int Db::insertBook(const std::string& _author, const std::string& _title,
 	return 0;
 }
 
-int Db::updateBook(const std::string& _author, const std::string& _title,
+int Db::updateBook(const std::string& _oldAuthor, const std::string& _oldTitle,
+				   const std::string& _author, const std::string& _title,
 				   int _rating, int _copies)
 {
 	int rc;
@@ -242,26 +244,40 @@ int Db::updateBook(const std::string& _author, const std::string& _title,
 		return 1;
 	}
 
-	rc = sqlite3_bind_int(m_stmts[UPDATESTMT], 1, _rating);
-	if (rc) {
-		fprintf(stderr, "Couldn't bind values: %s\n", sqlite3_errmsg(m_db));
-		return 1;
-	}
-
-	rc = sqlite3_bind_int(m_stmts[UPDATESTMT], 2, _copies);
-	if (rc) {
-		fprintf(stderr, "Couldn't bind values: %s\n", sqlite3_errmsg(m_db));
-		return 1;
-	}
-
-	rc = sqlite3_bind_text(m_stmts[UPDATESTMT], 3, _author.c_str(),
+	rc = sqlite3_bind_text(m_stmts[UPDATESTMT], 1, _author.c_str(),
 						   -1, SQLITE_TRANSIENT);
 	if (rc) {
 		fprintf(stderr, "Couldn't bind values: %s\n", sqlite3_errmsg(m_db));
 		return 1;
 	}
 
-	rc = sqlite3_bind_text(m_stmts[UPDATESTMT], 4, _title.c_str(),
+	rc = sqlite3_bind_text(m_stmts[UPDATESTMT], 2, _title.c_str(),
+						   -1, SQLITE_TRANSIENT);
+	if (rc) {
+		fprintf(stderr, "Couldn't bind values: %s\n", sqlite3_errmsg(m_db));
+		return 1;
+	}
+
+	rc = sqlite3_bind_int(m_stmts[UPDATESTMT], 3, _rating);
+	if (rc) {
+		fprintf(stderr, "Couldn't bind values: %s\n", sqlite3_errmsg(m_db));
+		return 1;
+	}
+
+	rc = sqlite3_bind_int(m_stmts[UPDATESTMT], 4, _copies);
+	if (rc) {
+		fprintf(stderr, "Couldn't bind values: %s\n", sqlite3_errmsg(m_db));
+		return 1;
+	}
+
+	rc = sqlite3_bind_text(m_stmts[UPDATESTMT], 5, _oldAuthor.c_str(),
+						   -1, SQLITE_TRANSIENT);
+	if (rc) {
+		fprintf(stderr, "Couldn't bind values: %s\n", sqlite3_errmsg(m_db));
+		return 1;
+	}
+
+	rc = sqlite3_bind_text(m_stmts[UPDATESTMT], 6, _oldTitle.c_str(),
 						   -1, SQLITE_TRANSIENT);
 	if (rc) {
 		fprintf(stderr, "Couldn't bind values: %s\n", sqlite3_errmsg(m_db));

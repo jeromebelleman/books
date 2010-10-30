@@ -19,7 +19,8 @@ public:
 	int lsnext(int _what, std::string *_val);
 	int insertBook(const std::string& _author, const std::string& _title,
 				   int _rating, int _copies);
-	int updateBook(const std::string& _author, const std::string& _title,
+	int updateBook(const std::string& _oldAuthor, const std::string& _oldTitle,
+				   const std::string& _author, const std::string& _title,
 				   int _rating, int _copies);
 	int deleteBook(const std::string& _author, const std::string& _title);
 	~Db(void);
