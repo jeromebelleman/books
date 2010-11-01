@@ -144,7 +144,7 @@ void EditDialog::save(bool)
 	rating = m_rating->get();
 	copies = m_spinbox->value();
 
-	/* Is it about insert or updating? */
+	/* Is it about inserting or updating? */
 	if (m_isNew) {
 		/* Check any duplicate */
 		m_db->lookup(author.toStdString(), title.toStdString());

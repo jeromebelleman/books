@@ -4,6 +4,8 @@
 #include "editdialog.h"
 #include "db.h"
 
+#define MARGIN 50
+
 MainWindow::MainWindow(void)
 	: m_db(NULL)
 {
@@ -36,20 +38,22 @@ MainWindow::MainWindow(void)
 			this, SLOT(editBook(const QModelIndex)));
 	setCentralWidget(m_tree);
 
+	/* Read RC and open DB */
 	m_cnf.read();
 	rc = m_cnf.get("dbpath", &path);
 	if (rc == 0) {
 		m_db = new Db(path);
-		m_newbook->setEnabled(true);
-		m_deletemenu->setEnabled(true);
-		rc = filter(); /* FIXME Shadowed RC here */
-		rc = ls();
+		if (m_db->is_open()) {
+			m_newbook->setEnabled(true);
+			m_deletemenu->setEnabled(true);
+			filter();
+			ls();
+		} else {
+			statusBar()->showMessage(tr("Invalid DB file"));
+		}
 		m_tree->setColumnWidth(0, 200);
 		m_tree->setColumnWidth(1, 200);
 		m_tree->setColumnWidth(2, 100);
-		if (rc) {
-			statusBar()->showMessage(tr("Invalid DB file"));
-		}
 	}
 }
 
@@ -60,10 +64,15 @@ int MainWindow::menus(void)
 
 	file = menuBar()->addMenu(tr("&File"));
 
-	open = new QAction(tr("&Open"), this);
+	open = new QAction(tr("&Open..."), this);
 	open->setShortcut(tr("Ctrl+O"));
 	connect(open, SIGNAL(triggered(void)), this, SLOT(open(void)));
 	file->addAction(open);
+
+	m_print = new QAction(QIcon(":printer.png"), tr("&Print..."), this);
+	m_print->setShortcut(tr("Ctrl+P"));
+	connect(m_print, SIGNAL(triggered(void)), this, SLOT(printDialog(void)));
+	file->addAction(m_print);
 
 	quit = new QAction(tr("&Quit"), this);
 	quit->setShortcut(tr("Ctrl+Q"));
@@ -157,9 +166,9 @@ int MainWindow::filter(void)
 	while (m_model.removeRow(0));
 	while (m_db->lookupnext(&author, &title, &rating, &copies) == 0) {
 		items.clear();
-		authoritm = new QStandardItem(QString::fromUtf8(author.c_str()));
+		authoritm = new QStandardItem(author.c_str());
 		authoritm->setEditable(false);
-		titleitm = new QStandardItem(QString::fromUtf8(title.c_str()));
+		titleitm = new QStandardItem(title.c_str());
 		titleitm->setEditable(false);
 		ratingitm = new QStandardItem();
 		ratingitm->setData(qVariantFromValue(Rating(rating)), 0);
@@ -189,7 +198,6 @@ int MainWindow::filter(void)
 
 void MainWindow::open(void)
 {
-	int rc;
 	QStringList files;
 
 	if (m_filedialog->exec()) {
@@ -206,11 +214,16 @@ void MainWindow::open(void)
 
 		/* Open and read DB */
 		m_db = new Db(files[0].toStdString());
-		m_newbook->setEnabled(true);
-		m_deletemenu->setEnabled(true);
-		rc = filter();
-		if (rc) {
+		if (m_db->is_open()) {
+			m_newbook->setEnabled(true);
+			m_deletemenu->setEnabled(true);
+			filter();
+			ls();
+		} else {
+			m_newbook->setEnabled(false);
+			m_deletemenu->setEnabled(false);
 			statusBar()->showMessage(tr("Invalid DB file"));
+			filter();
 		}
 	}
 }
@@ -343,6 +356,70 @@ void MainWindow::finish(const QModelIndex& _index)
 	/* FIXME Blunt, because everything is updated even without a change */
 	filter();
 	ls();
+}
+
+void MainWindow::print(void)
+{
+/* 	QPainter painter(m_printer);
+
+	std::cout << "print!\n";
+	painter.setFont(QFont("Arial", 30));
+	painter.drawText(100, 100, "Voila!"); */
+}
+
+void MainWindow::printDialog(void)
+{
+	QPrinter printer;
+	QPrintDialog dialog(&printer);
+	QStandardItem *item;
+	QRect viewport;
+	QFont roman, italic;
+	QRect bbox;
+	int y = 0;
+	Rating rating;
+	QPalette palette;
+
+	italic.setItalic(true);
+
+/* 	m_printdialog->setWindowModality(Qt::WindowModal);
+	m_printdialog->setWindowFlags(Qt::Sheet); */
+	if (dialog.exec()) {
+		QPainter painter(&printer);
+		viewport = painter.viewport();
+		for (int i = 0, j = 0; i < m_model.rowCount(); ++i, ++j) {
+			if (y > viewport.bottom() - MARGIN * 2) {
+				printer.newPage();
+				j = 0;
+			}
+			y = MARGIN + j * 20;
+
+			item = m_model.item(i, 0);
+			bbox.setRect(MARGIN, y, 200, 20);
+			if (i % 2 != 0) {
+				painter.fillRect(bbox.x(), bbox.y(), 730, 20,
+								 QBrush(QColor(224, 224, 224)));
+			}
+			painter.setFont(roman);
+			painter.drawText(bbox, 0, item->text());
+
+			item = m_model.item(i, 1);
+			bbox.setRect(MARGIN + 210, y, 300, 20);
+			painter.setFont(italic);
+			painter.drawText(bbox, 0, item->text());
+
+			item = m_model.item(i, 2);
+			bbox.setRect(MARGIN + 520, y, 100, 20);
+			/* No, item->data() is not good enough. Mystery... */
+			rating = qVariantValue<Rating>(item->index().data());
+			rating.paint(&painter, bbox, palette, false);
+			painter.drawText(bbox, 0, item->text());
+
+			item = m_model.item(i, 3);
+			bbox.setRect(MARGIN + 630, y, 100, 20);
+			painter.setFont(roman);
+			painter.drawText(bbox, 0, item->text());
+		}
+	}
 }
 
 void RatingDelegate::paint(QPainter *_painter,

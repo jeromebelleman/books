@@ -23,7 +23,7 @@ Db::Db(const std::string& _path)
 
 	/* Open DB */
 	rc = sqlite3_open_v2(_path.c_str(), &m_db, SQLITE_OPEN_READWRITE, NULL);
-	if (rc) {
+	if (rc != SQLITE_OK) {
 		fprintf(stderr, "Couldn't open database: %s\n", sqlite3_errmsg(m_db));
 		sqlite3_close(m_db);
 		m_db = NULL;
@@ -49,7 +49,17 @@ Db::Db(const std::string& _path)
 			sqlite3_close(m_db);
 			m_stmts[i] = NULL;
 			m_db = NULL;
+			return;
 		}
+	}
+}
+
+bool Db::is_open(void)
+{
+	if (m_db) {
+		return true;
+	} else {
+		return false;
 	}
 }
 
@@ -221,7 +231,6 @@ int Db::insertBook(const std::string& _author, const std::string& _title,
 	rc = sqlite3_step(m_stmts[INSERTSTMT]);
 	if (rc != SQLITE_DONE) {
 		fprintf(stderr, "Couldn't insert row: %s\n", sqlite3_errmsg(m_db));
-		return 1;
 	}
 
 	rc = sqlite3_reset(m_stmts[INSERTSTMT]);
@@ -287,7 +296,6 @@ int Db::updateBook(const std::string& _oldAuthor, const std::string& _oldTitle,
 	rc = sqlite3_step(m_stmts[UPDATESTMT]);
 	if (rc != SQLITE_DONE) {
 		fprintf(stderr, "Couldn't update row: %s\n", sqlite3_errmsg(m_db));
-		return 1;
 	}
 
 	rc = sqlite3_reset(m_stmts[UPDATESTMT]);
@@ -325,7 +333,6 @@ int Db::deleteBook(const std::string& _author, const std::string& _title)
 	rc = sqlite3_step(m_stmts[DELETESTMT]);
 	if (rc != SQLITE_DONE) {
 		fprintf(stderr, "Couldn't update row: %s\n", sqlite3_errmsg(m_db));
-		return 1;
 	}
 
 	rc = sqlite3_reset(m_stmts[DELETESTMT]);

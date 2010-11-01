@@ -6,7 +6,7 @@
 
 class Rating {
 public:
-	Rating(int _rating = 3);
+	Rating(int _rating = 0);
 	int get(void);
 	void set(int _rating);
 	void paint(QPainter *_painter, const QRect& _rect,

@@ -31,12 +31,14 @@ public slots:
 	void deleteBook(bool _checked);
 	int ls(void);
 	void finish(const QModelIndex&);
+	void printDialog(void);
+	void print(void);
 
 signals:
 	void closed(void);
 
 private:
-	QAction *m_newbook;
+	QAction *m_newbook, *m_print;
 	QStandardItemModel m_authormodel, m_titlemodel;
 	QStandardItemModel m_model;
 	Cnf m_cnf;

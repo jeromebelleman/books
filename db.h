@@ -11,6 +11,7 @@ public:
 		   INSERTSTMT, UPDATESTMT, DELETESTMT, STMTC };
 
 	Db(const std::string& _path);
+	bool is_open(void);
 	static const char *version(void);
 	int lookup(const std::string& _author = "%%",
 			   const std::string& _title = "%%", bool _isStrict = false);
