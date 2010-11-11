@@ -108,17 +108,24 @@ int Db::lookup(const std::string& _author,
 }
 
 int Db::lookupnext(std::string *_author, std::string *_title,
-				   int *_rating, int *_copies)
+				   int *_rating, int *_copies, bool _isStrict)
 {
 	int rc;
 	const char *author, *title;
 	int rating, copies;
+	sqlite3_stmt *stmt;
 
-	if (!m_db || !m_stmts[LOOKUPSTMT]) {
+	if (_isStrict) {
+		stmt = m_stmts[LOOKUPSTRICTSTMT];
+	} else {
+		stmt = m_stmts[LOOKUPSTMT];
+	}
+
+	if (!m_db || !stmt) {
 		return 1;
 	}
 
-	rc = sqlite3_step(m_stmts[LOOKUPSTMT]);
+	rc = sqlite3_step(stmt);
 	if (rc == SQLITE_DONE) {
 		return 1;
 	} else if (rc != SQLITE_ROW) {
@@ -127,10 +134,11 @@ int Db::lookupnext(std::string *_author, std::string *_title,
 		return 1;
 	}
 
-	author = (const char *) sqlite3_column_text(m_stmts[LOOKUPSTMT], 0);
-	title = (const char *) sqlite3_column_text(m_stmts[LOOKUPSTMT], 1);
-	rating = sqlite3_column_int(m_stmts[LOOKUPSTMT], 2);
-	copies = sqlite3_column_int(m_stmts[LOOKUPSTMT], 3);
+	author = (const char *) sqlite3_column_text(stmt, 0);
+	title = (const char *) sqlite3_column_text(stmt, 1);
+	printf("%s %s\n", author, title);
+	rating = sqlite3_column_int(stmt, 2);
+	copies = sqlite3_column_int(stmt, 3);
 	if (author && title) {
 		if (_author) {
 			*_author = author;

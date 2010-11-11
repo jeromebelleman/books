@@ -50,6 +50,7 @@ EditDialog::EditDialog(QWidget *_parent, const QModelIndex& _index, Db *_db,
 	label = new QLabel(tr("Rating"));
 	grid->addWidget(label, 2, 0);
 	checkbox = new QCheckBox;
+	checkbox->setFocusPolicy(Qt::StrongFocus); /* OS X needs this */
 	connect(checkbox, SIGNAL(stateChanged(int)),
 			this, SLOT(setRatingEnabled(int)));
 	m_rating = new RatingEditor(_rating);
@@ -147,8 +148,8 @@ void EditDialog::save(bool)
 	/* Is it about inserting or updating? */
 	if (m_isNew) {
 		/* Check any duplicate */
-		m_db->lookup(author.toStdString(), title.toStdString());
-		rc = m_db->lookupnext(NULL, NULL, &m_dbrating, &m_dbcopies);
+		m_db->lookup(author.toStdString(), title.toStdString(), true);
+		rc = m_db->lookupnext(NULL, NULL, &m_dbrating, &m_dbcopies, true);
 		if (rc) {
 			m_db->insertBook(author.toStdString(), title.toStdString(),
 							 rating, copies);
@@ -175,7 +176,7 @@ void EditDialog::finish(int _result)
 		author = m_authorlineedit->text();
 		title = m_titlelineedit->text();
 
-		m_db->updateBook(m_author.toStdString(), m_title.toStdString(),
+		m_db->updateBook(author.toStdString(), title.toStdString(),
 						 author.toStdString(), title.toStdString(),
 						 m_dbrating, m_dbcopies + 1);
 		close();

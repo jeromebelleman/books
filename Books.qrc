@@ -2,5 +2,8 @@
 <qresource>
 	<file>book.png</file>
 	<file>printer.png</file>
+	<file>stack.png</file>
+	<file>delete.png</file>
+	<file>exit.png</file>
 </qresource>
 </RCC>

@@ -16,7 +16,7 @@ public:
 	int lookup(const std::string& _author = "%%",
 			   const std::string& _title = "%%", bool _isStrict = false);
 	int lookupnext(std::string *_author, std::string *_title,
-				   int *_rating, int *_copies);
+				   int *_rating, int *_copies, bool _isStrict = false);
 	int lsnext(int _what, std::string *_val);
 	int insertBook(const std::string& _author, const std::string& _title,
 				   int _rating, int _copies);

@@ -176,7 +176,7 @@ int Cnf::write(void)
 	#if defined(Q_WS_MAC)
 	libpath = std::string(home) + "/Library/Books";
 	rc = mkdir(libpath.c_str(), S_IRWXU);
-	if (rc != 0 and rc != EEXIST) {
+	if (rc != 0 and errno != EEXIST) {
 		return 1;
 	}
 	path = std::string(home) + "/Library/Books/.booksrc";

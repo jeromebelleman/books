@@ -4,7 +4,7 @@
 #include "editdialog.h"
 #include "db.h"
 
-#define MARGIN 50
+#define ROWC 50 /* Good on OS X, good on Linux */
 
 MainWindow::MainWindow(void)
 	: m_db(NULL)
@@ -64,7 +64,7 @@ int MainWindow::menus(void)
 
 	file = menuBar()->addMenu(tr("&File"));
 
-	open = new QAction(tr("&Open..."), this);
+	open = new QAction(QIcon(":stack.png"), tr("&Open Database..."), this);
 	open->setShortcut(tr("Ctrl+O"));
 	connect(open, SIGNAL(triggered(void)), this, SLOT(open(void)));
 	file->addAction(open);
@@ -74,7 +74,7 @@ int MainWindow::menus(void)
 	connect(m_print, SIGNAL(triggered(void)), this, SLOT(printDialog(void)));
 	file->addAction(m_print);
 
-	quit = new QAction(tr("&Quit"), this);
+	quit = new QAction(QIcon(":/book.png"), tr("&Quit"), this);
 	quit->setShortcut(tr("Ctrl+Q"));
 	connect(quit, SIGNAL(triggered(void)), this, SLOT(bye(void)));
 	file->addAction(quit);
@@ -90,7 +90,8 @@ int MainWindow::menus(void)
 	m_deletemenu = book->addMenu(tr("Delete Book?"));
 	m_deletemenu->setEnabled(false);
 
-	deletebook = new QAction(tr("Yes, &Delete Book"), this);
+	deletebook = new QAction(QIcon(":/delete.png"),
+							 tr("Yes, &Delete Book"), this);
 	connect(deletebook, SIGNAL(triggered(bool)), this, SLOT(deleteBook(bool)));
 	m_deletemenu->addAction(deletebook);
 
@@ -159,7 +160,7 @@ int MainWindow::filter(void)
 	str = "%" + m_lineedit->text() + "%";
 	rc = m_db->lookup(str.toStdString(), str.toStdString());
 	if (rc) {
-		m_model.clear();
+		while (m_model.removeRow(0));
 		return 1;
 	}
 
@@ -303,13 +304,13 @@ int MainWindow::ls(void)
 
 	m_authormodel.clear();
 	while (m_db->lsnext(Db::AUTHOR, &val) == 0) {
-		item = new QStandardItem(QString::fromUtf8(val.c_str()));
+		item = new QStandardItem(val.c_str());
 		m_authormodel.appendRow(item);
 	}
 
 	m_titlemodel.clear();
 	while (m_db->lsnext(Db::TITLE, &val) == 0) {
-		item = new QStandardItem(QString::fromUtf8(val.c_str()));
+		item = new QStandardItem(val.c_str());
 		m_titlemodel.appendRow(item);
 	}
 
@@ -369,16 +370,20 @@ void MainWindow::print(void)
 
 void MainWindow::printDialog(void)
 {
-	QPrinter printer;
+	QPrinter printer(QPrinter::ScreenResolution);
 	QPrintDialog dialog(&printer);
 	QStandardItem *item;
 	QRect viewport;
 	QFont roman, italic;
 	QRect bbox;
+	int margin;
+	int w;
 	int y = 0;
 	Rating rating;
 	QPalette palette;
 
+	roman.setPointSize(9);
+	italic.setPointSize(9);
 	italic.setItalic(true);
 
 /* 	m_printdialog->setWindowModality(Qt::WindowModal);
@@ -386,36 +391,42 @@ void MainWindow::printDialog(void)
 	if (dialog.exec()) {
 		QPainter painter(&printer);
 		viewport = painter.viewport();
+		margin = viewport.width() / 20;
+		w = viewport.width();
 		for (int i = 0, j = 0; i < m_model.rowCount(); ++i, ++j) {
-			if (y > viewport.bottom() - MARGIN * 2) {
+			if (y > viewport.height() - margin * 2) {
 				printer.newPage();
 				j = 0;
 			}
-			y = MARGIN + j * 20;
+			y = margin + j * viewport.height() / ROWC;
 
 			item = m_model.item(i, 0);
-			bbox.setRect(MARGIN, y, 200, 20);
+			bbox.setRect(margin, y, w / 4, viewport.height() / ROWC);
 			if (i % 2 != 0) {
-				painter.fillRect(bbox.x(), bbox.y(), 730, 20,
+				painter.fillRect(bbox.x(), bbox.y(),
+								 margin + w / 4 + w / 3 + w / 6,
+								 viewport.height() / ROWC,
 								 QBrush(QColor(224, 224, 224)));
 			}
 			painter.setFont(roman);
 			painter.drawText(bbox, 0, item->text());
 
 			item = m_model.item(i, 1);
-			bbox.setRect(MARGIN + 210, y, 300, 20);
+			bbox.setRect(margin + w / 4, y, w / 3, viewport.height() / ROWC);
 			painter.setFont(italic);
 			painter.drawText(bbox, 0, item->text());
 
 			item = m_model.item(i, 2);
-			bbox.setRect(MARGIN + 520, y, 100, 20);
+			bbox.setRect(margin + w / 4 + w / 3, y, w / 6,
+						 viewport.height() / ROWC);
 			/* No, item->data() is not good enough. Mystery... */
 			rating = qVariantValue<Rating>(item->index().data());
 			rating.paint(&painter, bbox, palette, false);
 			painter.drawText(bbox, 0, item->text());
 
 			item = m_model.item(i, 3);
-			bbox.setRect(MARGIN + 630, y, 100, 20);
+			bbox.setRect(margin + w / 4 + w / 3 + w / 6, y,
+						 w / 6, viewport.height() / ROWC);
 			painter.setFont(roman);
 			painter.drawText(bbox, 0, item->text());
 		}
