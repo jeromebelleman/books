@@ -28,8 +28,10 @@ MainWindow::MainWindow(void)
 
 	m_tree = new QTreeView();
 	m_model.setHorizontalHeaderLabels(m_headers);
-	m_tree->setModel(&m_model);
+	m_proxy.setSourceModel(&m_model);
+	m_tree->setModel(&m_proxy);
 	m_tree->setRootIsDecorated(false);
+	m_tree->setSortingEnabled(true);
 	m_tree->setAlternatingRowColors(true);
 	m_tree->setSelectionMode(QAbstractItemView::ExtendedSelection);
 	m_delegate = new RatingDelegate();
@@ -172,7 +174,7 @@ int MainWindow::filter(void)
 		titleitm = new QStandardItem(title.c_str());
 		titleitm->setEditable(false);
 		ratingitm = new QStandardItem();
-		ratingitm->setData(qVariantFromValue(Rating(rating)), 0);
+		ratingitm->setData(qVariantFromValue(Rating(rating)), Qt::DisplayRole);
 		ratingitm->setEditable(false);
 		copiesitm = new QStandardItem(QString::number(copies));
 		copiesitm->setEditable(false);
@@ -218,6 +220,7 @@ void MainWindow::open(void)
 		if (m_db->is_open()) {
 			m_newbook->setEnabled(true);
 			m_deletemenu->setEnabled(true);
+			statusBar()->clearMessage();
 			filter();
 			ls();
 		} else {
@@ -359,20 +362,13 @@ void MainWindow::finish(const QModelIndex& _index)
 	ls();
 }
 
-void MainWindow::print(void)
-{
-/* 	QPainter painter(m_printer);
-
-	std::cout << "print!\n";
-	painter.setFont(QFont("Arial", 30));
-	painter.drawText(100, 100, "Voila!"); */
-}
-
 void MainWindow::printDialog(void)
 {
 	QPrinter printer(QPrinter::ScreenResolution);
 	QPrintDialog dialog(&printer);
-	QStandardItem *item;
+/* 	QStandardItem *item; */
+	QModelIndex index;
+	QString str;
 	QRect viewport;
 	QFont roman, italic;
 	QRect bbox;
@@ -393,14 +389,14 @@ void MainWindow::printDialog(void)
 		viewport = painter.viewport();
 		margin = viewport.width() / 20;
 		w = viewport.width();
-		for (int i = 0, j = 0; i < m_model.rowCount(); ++i, ++j) {
+		for (int i = 0, j = 0; i < m_proxy.rowCount(); ++i, ++j) {
 			if (y > viewport.height() - margin * 2) {
 				printer.newPage();
 				j = 0;
 			}
 			y = margin + j * viewport.height() / ROWC;
 
-			item = m_model.item(i, 0);
+			index = m_proxy.index(i, 0);
 			bbox.setRect(margin, y, w / 4, viewport.height() / ROWC);
 			if (i % 2 != 0) {
 				painter.fillRect(bbox.x(), bbox.y(),
@@ -409,26 +405,32 @@ void MainWindow::printDialog(void)
 								 QBrush(QColor(224, 224, 224)));
 			}
 			painter.setFont(roman);
-			painter.drawText(bbox, 0, item->text());
+			str = qVariantValue<QString>(index.data());
+			painter.drawText(bbox, 0, str);
 
-			item = m_model.item(i, 1);
+			index = m_proxy.index(i, 1);
 			bbox.setRect(margin + w / 4, y, w / 3, viewport.height() / ROWC);
 			painter.setFont(italic);
-			painter.drawText(bbox, 0, item->text());
+			str = qVariantValue<QString>(index.data());
+			painter.drawText(bbox, 0, str);
 
-			item = m_model.item(i, 2);
+/* 			item = m_proxy.item(i, 2); */
+			index = m_proxy.index(i, 2);
 			bbox.setRect(margin + w / 4 + w / 3, y, w / 6,
 						 viewport.height() / ROWC);
+			#if 0
 			/* No, item->data() is not good enough. Mystery... */
 			rating = qVariantValue<Rating>(item->index().data());
+			#endif
+			rating = qVariantValue<Rating>(index.data());
 			rating.paint(&painter, bbox, palette, false);
-			painter.drawText(bbox, 0, item->text());
 
-			item = m_model.item(i, 3);
+			index = m_proxy.index(i, 3);
 			bbox.setRect(margin + w / 4 + w / 3 + w / 6, y,
 						 w / 6, viewport.height() / ROWC);
 			painter.setFont(roman);
-			painter.drawText(bbox, 0, item->text());
+			str = qVariantValue<QString>(index.data());
+			painter.drawText(bbox, 0, str);
 		}
 	}
 }
@@ -448,5 +450,23 @@ void RatingDelegate::paint(QPainter *_painter,
 		}
 	} else {
 		QItemDelegate::paint(_painter, _option, _index);
+	}
+}
+
+bool BookModel::lessThan(const QModelIndex& _left,
+						 const QModelIndex& _right) const
+{
+	QString rightstr, leftstr;
+	Rating leftrating, rightrating;
+
+	if (_left.column() < 2 or _left.column() == 3) {
+		leftstr = qVariantValue<QString>(_right.data());
+		rightstr = qVariantValue<QString>(_left.data());
+		return leftstr.compare(rightstr, Qt::CaseInsensitive) < 0 ?
+			true : false;
+	} else {
+		leftrating = qVariantValue<Rating>(_left.data());
+		rightrating = qVariantValue<Rating>(_right.data());
+		return leftrating.get() < rightrating.get();
 	}
 }

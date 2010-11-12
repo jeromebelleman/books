@@ -136,7 +136,6 @@ int Db::lookupnext(std::string *_author, std::string *_title,
 
 	author = (const char *) sqlite3_column_text(stmt, 0);
 	title = (const char *) sqlite3_column_text(stmt, 1);
-	printf("%s %s\n", author, title);
 	rating = sqlite3_column_int(stmt, 2);
 	copies = sqlite3_column_int(stmt, 3);
 	if (author && title) {

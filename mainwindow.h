@@ -7,6 +7,11 @@
 
 class Db;
 
+class BookModel : public QSortFilterProxyModel {
+public:
+	bool lessThan(const QModelIndex& _left, const QModelIndex& _right) const;
+};
+
 class RatingDelegate : public QItemDelegate
 {
 public:
@@ -32,7 +37,6 @@ public slots:
 	int ls(void);
 	void finish(const QModelIndex&);
 	void printDialog(void);
-	void print(void);
 
 signals:
 	void closed(void);
@@ -41,6 +45,7 @@ private:
 	QAction *m_newbook, *m_print;
 	QStandardItemModel m_authormodel, m_titlemodel;
 	QStandardItemModel m_model;
+	BookModel m_proxy;
 	Cnf m_cnf;
 	Db *m_db;
 	QFileDialog *m_filedialog;
