@@ -39,6 +39,7 @@ MainWindow::MainWindow(void)
 	connect(m_tree, SIGNAL(doubleClicked(const QModelIndex)),
 			this, SLOT(editBook(const QModelIndex)));
 	setCentralWidget(m_tree);
+	statusBar()->showMessage(tr("Books 1.0.2"));
 
 	/* Read RC and open DB */
 	m_cnf.read();
@@ -247,7 +248,6 @@ void MainWindow::closeEvent(QCloseEvent *)
 
 void MainWindow::editBook(const QModelIndex& _index)
 {
-	QStandardItem *item;
 	QModelIndex mainindex, index;
 	QString author, title;
 	Rating rating;
@@ -262,20 +262,16 @@ void MainWindow::editBook(const QModelIndex& _index)
 		return;
 	}
 	m_opened << mainindex;
-	item = m_model.itemFromIndex(mainindex);
-	author = item->text();
+	author = qVariantValue<QString>(mainindex.data());
 
 	index = _index.sibling(_index.row(), 1);
-	item = m_model.itemFromIndex(index);
-	title = item->text();
+	title = qVariantValue<QString>(index.data());
 
 	index = _index.sibling(_index.row(), 2);
-	item = m_model.itemFromIndex(index);
 	rating = qVariantValue<Rating>(index.data());
 
 	index = _index.sibling(_index.row(), 3);
-	item = m_model.itemFromIndex(index);
-	copies = item->text().toInt();
+	copies = qVariantValue<int>(index.data());
 
 	EditDialog *edit = new EditDialog(this, mainindex, m_db, &m_authormodel,
 									  &m_titlemodel, false, author, title,
@@ -325,8 +321,7 @@ void MainWindow::deleteBook(bool)
 	QItemSelectionModel *model;
 	QModelIndexList selected;
 	QModelIndex index;
-	QStandardItem *item;
-	std::string author, title;
+	QString author, title;
 
 	if (!m_db) {
 		return;
@@ -338,14 +333,12 @@ void MainWindow::deleteBook(bool)
 	selected = model->selectedRows();
 	for (int i = 0; i < selected.size(); ++i) {
 		index = selected[i];
-		item = m_model.itemFromIndex(index);
-		author = item->text().toStdString();
+		author = qVariantValue<QString>(index.data());
 
 		index = index.sibling(index.row(), 1);
-		item = m_model.itemFromIndex(index);
-		title = item->text().toStdString();
+		title = qVariantValue<QString>(index.data());
 
-		m_db->deleteBook(author, title);
+		m_db->deleteBook(author.toStdString(), title.toStdString());
 	}
 	filter();
 	ls();
@@ -462,7 +455,7 @@ bool BookModel::lessThan(const QModelIndex& _left,
 	if (_left.column() < 2 or _left.column() == 3) {
 		leftstr = qVariantValue<QString>(_right.data());
 		rightstr = qVariantValue<QString>(_left.data());
-		return leftstr.compare(rightstr, Qt::CaseInsensitive) < 0 ?
+		return leftstr.compare(rightstr, Qt::CaseInsensitive) > 0 ?
 			true : false;
 	} else {
 		leftrating = qVariantValue<Rating>(_left.data());
