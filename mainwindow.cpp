@@ -1,5 +1,6 @@
 #include <iostream>
 #include <QtGui>
+#include <unistd.h>
 #include "mainwindow.h"
 #include "editdialog.h"
 #include "db.h"
