@@ -40,7 +40,7 @@ MainWindow::MainWindow(void)
 	connect(m_tree, SIGNAL(doubleClicked(const QModelIndex)),
 			this, SLOT(editBook(const QModelIndex)));
 	setCentralWidget(m_tree);
-	statusBar()->showMessage(tr("Books 1.0.2"));
+	statusBar()->showMessage(tr("Books 1.0.3"));
 
 	/* Read RC and open DB */
 	m_cnf.read();
